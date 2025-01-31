@@ -38,5 +38,28 @@ def parse_transport(pkt):
         return f"ICMP: Type={icmp.type}, Code={icmp.code}, Checksum={icmp.chksum}"
     return "Other Protocol"
 
+def process_pcap(file_path, args):
+    """Processes packets from a pcap file with filtering."""
+    packets = rdpcap(file_path)
+    count = 0
+
+    for i, pkt in enumerate(packets):
+        if args.count and count >= args.count:
+            break  # Stop after reaching the packet limit
+        # if not packet_matches_filter(pkt, args):
+        #     continue  # Skip packets that don't match the filter
+        print(f"\nPacket {i + 1}:")
+        if Ether in pkt:
+            pkt_size, dst_mac, src_mac, eth_type = parse_ethernet(pkt)
+            print(f"  Ethernet: Size={pkt_size} bytes, Dst MAC={dst_mac}, Src MAC={src_mac}, Type={eth_type}")
+        if IP in pkt:
+            (version, ihl, tos, length, ident, flags, frag_offset, ttl, proto, checksum, src_ip, dst_ip) = parse_ip(pkt)
+            print(f"  IP: Version={version}, IHL={ihl}, TOS={tos}, Length={length}, ID={ident}, Flags={flags}, "
+                  f"Fragment Offset={frag_offset}, TTL={ttl}, Protocol={proto}, Checksum={checksum}, Src={src_ip}, Dst={dst_ip}")
+        print(f"  {parse_transport(pkt)}")
+        count += 1
+
+
 if __name__ == "__main__":
     args = parse_arguments()
+    process_pcap(args.file, args)
