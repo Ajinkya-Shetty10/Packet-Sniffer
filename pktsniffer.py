@@ -38,6 +38,62 @@ def parse_transport(pkt):
         return f"ICMP: Type={icmp.type}, Code={icmp.code}, Checksum={icmp.chksum}"
     return "Other Protocol"
 
+def packet_matches_filter(pkt, args):
+    """Checks if the packet matches the user-specified filters."""
+    if IP not in pkt:
+        print("Debug: Skipping non-IP packet.")
+        return False
+
+    if args.host:
+        print(f"Debug: Checking host filter. Host={args.host}, Src={pkt[IP].src}, Dst={pkt[IP].dst}")
+        if args.host != pkt[IP].src and args.host != pkt[IP].dst:
+            print("Debug: Host filter failed. Skipping packet.")
+            return False
+
+    if args.port:
+        if TCP in pkt:
+            if args.port not in (pkt[TCP].sport, pkt[TCP].dport):
+                print(f"Debug: TCP Port {args.port} mismatch. Skipping packet.")
+                return False
+        elif UDP in pkt:
+            if args.port not in (pkt[UDP].sport, pkt[UDP].dport):
+                print(f"Debug: UDP Port {args.port} mismatch. Skipping packet.")
+                return False
+        elif ICMP in pkt:
+            print("Debug: Packet is ICMP, ignoring port filter.")
+        else:
+            print("Debug: Port filter applied, but packet is neither TCP nor UDP. Skipping.")
+            return False
+
+    if args.tcp or args.udp or args.icmp:
+        if args.tcp and TCP not in pkt:
+            print("Debug: TCP filter applied, but packet is not TCP. Skipping.")
+            return False
+        if args.udp and UDP not in pkt:
+            print("Debug: UDP filter applied, but packet is not UDP. Skipping.")
+            return False
+        if args.icmp and ICMP not in pkt:
+            print("Debug: ICMP filter applied, but packet is not ICMP. Skipping.")
+            return False
+
+    if args.net:
+        try:
+            network = ip_network(args.net, strict=False)
+            src_ip = ip_address(pkt[IP].src)
+            dst_ip = ip_address(pkt[IP].dst)
+            print(f"Debug: Checking network filter. Network={args.net}, Src IP={src_ip}, Dst IP={dst_ip}")
+            if src_ip not in network and dst_ip not in network:
+                print(f"Debug: Packet not in network {args.net}. Skipping.")
+                return False
+        except ValueError as e:
+            print(f"Error: Invalid network filter '{args.net}'. {e}")
+            return False
+        
+
+    print("Debug: Packet passed all filters.")
+    return True
+
+
 def process_pcap(file_path, args):
     """Processes packets from a pcap file with filtering."""
     packets = rdpcap(file_path)
@@ -46,8 +102,8 @@ def process_pcap(file_path, args):
     for i, pkt in enumerate(packets):
         if args.count and count >= args.count:
             break  # Stop after reaching the packet limit
-        # if not packet_matches_filter(pkt, args):
-        #     continue  # Skip packets that don't match the filter
+        if not packet_matches_filter(pkt, args):
+            continue  # Skip packets that don't match the filter
         print(f"\nPacket {i + 1}:")
         if Ether in pkt:
             pkt_size, dst_mac, src_mac, eth_type = parse_ethernet(pkt)
