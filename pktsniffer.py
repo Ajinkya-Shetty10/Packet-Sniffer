@@ -40,11 +40,12 @@ def parse_transport(pkt):
 
 def packet_matches_filter(pkt, args):
     """Checks if the packet matches the user-specified filters."""
-    if IP not in pkt:
-        print("Debug: Skipping non-IP packet.")
-        return False
+    
 
     if args.host:
+        if IP not in pkt:
+            print("Debug: Skipping non-IP packet.")
+            return False
         print(f"Debug: Checking host filter. Host={args.host}, Src={pkt[IP].src}, Dst={pkt[IP].dst}")
         if args.host != pkt[IP].src and args.host != pkt[IP].dst:
             print("Debug: Host filter failed. Skipping packet.")
