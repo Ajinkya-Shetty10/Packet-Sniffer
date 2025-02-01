@@ -36,7 +36,8 @@ def parse_transport(pkt):
     elif ICMP in pkt:
         icmp = pkt[ICMP]
         return f"ICMP: Type={icmp.type}, Code={icmp.code}, Checksum={icmp.chksum}"
-    return "Other Protocol"
+    else:
+        return "Unknown Transport Protocol"
 
 def packet_matches_filter(pkt, args):
     """Checks if the packet matches the user-specified filters."""
@@ -44,37 +45,32 @@ def packet_matches_filter(pkt, args):
 
     if args.host:
         if IP not in pkt:
-            print("Debug: Skipping non-IP packet.")
             return False
-        print(f"Debug: Checking host filter. Host={args.host}, Src={pkt[IP].src}, Dst={pkt[IP].dst}")
         if args.host != pkt[IP].src and args.host != pkt[IP].dst:
-            print("Debug: Host filter failed. Skipping packet.")
             return False
-
+        
     if args.port:
         if TCP in pkt:
             if args.port not in (pkt[TCP].sport, pkt[TCP].dport):
-                print(f"Debug: TCP Port {args.port} mismatch. Skipping packet.")
                 return False
         elif UDP in pkt:
             if args.port not in (pkt[UDP].sport, pkt[UDP].dport):
-                print(f"Debug: UDP Port {args.port} mismatch. Skipping packet.")
                 return False
         elif ICMP in pkt:
-            print("Debug: Packet is ICMP, ignoring port filter.")
-        else:
-            print("Debug: Port filter applied, but packet is neither TCP nor UDP. Skipping.")
             return False
+        else:
+            return False
+    protocol_matched = False
 
     if args.tcp or args.udp or args.icmp:
-        if args.tcp and TCP not in pkt:
-            print("Debug: TCP filter applied, but packet is not TCP. Skipping.")
-            return False
-        if args.udp and UDP not in pkt:
-            print("Debug: UDP filter applied, but packet is not UDP. Skipping.")
-            return False
-        if args.icmp and ICMP not in pkt:
-            print("Debug: ICMP filter applied, but packet is not ICMP. Skipping.")
+        if args.tcp and TCP in pkt:
+            protocol_matched = True
+        if args.udp and UDP in pkt:
+            protocol_matched = True
+        if args.icmp and ICMP in pkt:
+            protocol_matched = True
+
+        if not protocol_matched:
             return False
 
     if args.net:
@@ -82,16 +78,11 @@ def packet_matches_filter(pkt, args):
             network = ip_network(args.net, strict=False)
             src_ip = ip_address(pkt[IP].src)
             dst_ip = ip_address(pkt[IP].dst)
-            print(f"Debug: Checking network filter. Network={args.net}, Src IP={src_ip}, Dst IP={dst_ip}")
             if src_ip not in network and dst_ip not in network:
-                print(f"Debug: Packet not in network {args.net}. Skipping.")
                 return False
         except ValueError as e:
             print(f"Error: Invalid network filter '{args.net}'. {e}")
             return False
-        
-
-    print("Debug: Packet passed all filters.")
     return True
 
 
@@ -113,7 +104,10 @@ def process_pcap(file_path, args):
             (version, ihl, tos, length, ident, flags, frag_offset, ttl, proto, checksum, src_ip, dst_ip) = parse_ip(pkt)
             print(f"  IP: Version={version}, IHL={ihl}, TOS={tos}, Length={length}, ID={ident}, Flags={flags}, "
                   f"Fragment Offset={frag_offset}, TTL={ttl}, Protocol={proto}, Checksum={checksum}, Src={src_ip}, Dst={dst_ip}")
-        print(f"  {parse_transport(pkt)}")
+        transport_info = parse_transport(pkt)
+        if transport_info:
+            print(f"  {transport_info}")
+
         count += 1
 
 
