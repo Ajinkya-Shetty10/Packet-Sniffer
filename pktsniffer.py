@@ -46,7 +46,7 @@ def packet_matches_filter(pkt, args):
     if args.host:
         if IP not in pkt:
             return False
-        if args.host != pkt[IP].src and args.host != pkt[IP].dst:
+        if args.host != pkt[IP].src :
             return False
         
     if args.port:
