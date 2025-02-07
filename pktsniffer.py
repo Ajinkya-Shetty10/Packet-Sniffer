@@ -1,9 +1,19 @@
+"""
+Author Name: Ajinkya Shetty as8856
+Homework 01: Packet Sniffer
+"""
+
 import argparse
 from scapy.all import rdpcap, Ether, IP, TCP, UDP, ICMP
 from ipaddress import ip_network, ip_address
 
 def parse_arguments():
-    """Parses command-line arguments using argparse."""
+    """
+    Parses command-line arguments using argparse.
+    
+    Returns:
+        argparse.Namespace: Parsed command-line arguments.
+    """
     parser = argparse.ArgumentParser(description="A simple packet sniffer for pcap files.")
     parser.add_argument("-r", "--file", required=True, help="Path to the .pcap file")
     parser.add_argument("-c", "--count", type=int, help="Limit the number of packets analyzed")
@@ -16,17 +26,41 @@ def parse_arguments():
     return parser.parse_args()
 
 def parse_ethernet(pkt):
-    """Parses Ethernet header."""
+    """
+    Parses Ethernet header from a packet.
+    
+    Args:
+        pkt (scapy.packet.Packet): The network packet.
+
+    Returns:
+        tuple: Packet length, destination MAC, source MAC, and Ethernet type.
+    """
     eth = pkt[Ether]
     return len(pkt), eth.dst, eth.src, hex(eth.type)
 
 def parse_ip(pkt):
-    """Parses IP header."""
+    """
+    Parses IP header from a packet.
+    
+    Args:
+        pkt (scapy.packet.Packet): The network packet.
+
+    Returns:
+        tuple: IP header fields including version, IHL, TOS, length, etc.
+    """
     ip = pkt[IP]
     return ip.version, ip.ihl, ip.tos, ip.len, ip.id, ip.flags, ip.frag, ip.ttl, ip.proto, ip.chksum, ip.src, ip.dst
 
 def parse_transport(pkt):
-    """Parses TCP, UDP, or ICMP headers."""
+    """
+    Parses transport layer headers (TCP, UDP, ICMP) from a packet.
+    
+    Args:
+        pkt (scapy.packet.Packet): The network packet.
+
+    Returns:
+        str: Transport layer details (TCP, UDP, or ICMP).
+    """
     if TCP in pkt:
         tcp = pkt[TCP]
         return f"TCP: Src Port={tcp.sport}, Dst Port={tcp.dport}, Flags={tcp.flags}"
@@ -40,15 +74,22 @@ def parse_transport(pkt):
         return "Unknown Transport Protocol"
 
 def packet_matches_filter(pkt, args):
-    """Checks if the packet matches the user-specified filters."""
-    
+    """
+    Checks if a packet matches the user-specified filters.
 
+    Args:
+        pkt (scapy.packet.Packet): The network packet.
+        args (argparse.Namespace): Parsed command-line arguments.
+
+    Returns:
+        bool: True if the packet matches the filters, False otherwise.
+    """
     if args.host:
         if IP not in pkt:
             return False
-        if args.host != pkt[IP].src :
+        if args.host != pkt[IP].src:
             return False
-        
+
     if args.port:
         if TCP in pkt:
             if args.port not in (pkt[TCP].sport, pkt[TCP].dport):
@@ -60,8 +101,8 @@ def packet_matches_filter(pkt, args):
             return False
         else:
             return False
-    protocol_matched = False
 
+    protocol_matched = False
     if args.tcp or args.udp or args.icmp:
         if args.tcp and TCP in pkt:
             protocol_matched = True
@@ -69,7 +110,6 @@ def packet_matches_filter(pkt, args):
             protocol_matched = True
         if args.icmp and ICMP in pkt:
             protocol_matched = True
-
         if not protocol_matched:
             return False
 
@@ -85,9 +125,14 @@ def packet_matches_filter(pkt, args):
             return False
     return True
 
-
 def process_pcap(file_path, args):
-    """Processes packets from a pcap file with filtering."""
+    """
+    Processes packets from a pcap file with filtering.
+    
+    Args:
+        file_path (str): Path to the .pcap file.
+        args (argparse.Namespace): Parsed command-line arguments.
+    """
     packets = rdpcap(file_path)
     count = 0
 
@@ -109,7 +154,6 @@ def process_pcap(file_path, args):
             print(f"  {transport_info}")
 
         count += 1
-
 
 if __name__ == "__main__":
     args = parse_arguments()
